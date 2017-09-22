@@ -67,3 +67,4 @@ typings/
 *.swp
 
 yarn.lock
+db.json
