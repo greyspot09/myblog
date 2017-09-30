@@ -336,3 +336,182 @@ Breakpoint 1: 44 locations.
 (lldb) breakpoint delete 1
 (lldb) breakpoint delete 1.1
 ```
+
+## 第五章 Expression
+
+### p&po
+
+```
+(lldb) help p
+     Evaluate an expression on the current thread.  Displays any returned value
+     with LLDB's default formatting.  Expects 'raw' input (see 'help
+     raw-input'.)
+Syntax: 
+Command Options Usage:
+  p <expr>
+
+'p' is an abbreviation for 'expression --'
+```
+如上面的帮助，p是‘expression --’的缩写,p的输出以来于'type formatting'。可以使用type summary add修改制定类型的输出。如下
+```
+(lldb) type summary add Signals.MasterViewController --summary-string "Wahoo!"
+(lldb) p self
+(lldb) (Signals.MasterViewController) $R3 = 0x00007fb71fd04080 Wahoo!
+(lldb) type summary clear   //清除
+```
+p 会返回一个*R{number}*的变量。接上面的代码，这个变量可以使用`$R{number}`的形式在lldb中使用。
+
+```
+(lldb) help po
+     Evaluate an expression on the current thread.  Displays any returned value
+     with formatting controlled by the type's author.  Expects 'raw' input (see
+     'help raw-input'.)
+
+Syntax: 
+
+Command Options Usage:
+  po <expr>
+
+
+'po' is an abbreviation for 'expression -O  --'
+```
+如上面的帮助，p是‘expression -O --’的缩写。po返回的是对象的*debugDescription*输出。比如下面的代码
+``` Swift
+override var debugDescription: String { 
+    return "debugDescription: " + super.debugDescription 
+}
+```
+在MasterViewController的viewDidLoad上打断点并且执行下面的命令。
+```
+(lldb) po self
+debugDescription: Yay! debugging <Signals.MasterViewController: 0x7fb71fd04080>
+```
+
+### Swift和Objective-C的调试上下文
+
+在MasterViewController.swift的viewDidLoad上打断点并且执行下面
+```
+(lldb) po [UIApplication sharedApplication]
+error: <EXPR>:3:16: error: expected ',' separator [UIApplication sharedApplication]
+```
+因为断点是在Swift的上下文中，不能以Objective-C的方式打印。但是可以使用下面的代码切换成Objective-C的环境。
+```
+(lldb) expression -l objc -O -- [UIApplication sharedApplication]
+<UIApplication: 0x7f8b72f02c30>
+```
+
+同样的，在Objective-C中的断点，也可以使用 `expression -l swift -O -- `的方式打印。
+
+### 自定义变量
+
+在Objtive-C上下文中，执行下面的命令
+```
+(lldb) po id test = [NSObject new]
+(lldb) po test
+error: use of undeclared identifier 'test'
+```
+可以看到，test 不能被打印出来。在lldb中打印自定义变量，需要带上*$*字符。比如
+```
+(lldb) po id $test = [NSObject new]
+(lldb) po $test
+<NSObject: 0x600000006c90>
+```
+
+然后执行
+```
+
+(lldb) expression -l swift -O -- $test
+<NSObject: 0x600000006c90>
+
+(lldb) expression -l swift -O -- $test.description
+error: <EXPR>:3:1: error: use of unresolved identifier '$test'
+$test.description
+^~~~~
+```
+
+可以看到打印`$test.description`时报错了，这个需要注意，在Objective-C上下文中创建的变量，在Swift上下文中使用，不一定会正常工作。Objective-C 和Swift的桥接以后也需要会改进。
+
+
+如下，在XCode中添加一个`Signals.MasterContainerViewController.viewDidLoad() -> ()`的符号断点
+![Signals.MasterContainerViewController.viewDidLoad() -> ()](http://onkcruzxc.bkt.clouddn.com/1506738443.png)
+运行代码，断点在`MasterContainerViewController.viewDidLoad()`。
+
+```
+(lldb) p self
+(Signals.MasterContainerViewController) $R0 = 0x00007fc986d22200 {
+  UIKit.UIViewController = {
+    baseUIResponder@0 = {
+      NSObject = {
+        isa = Signals.MasterContainerViewController
+      }
+    }
+    ....................
+(lldb) continue
+```
+
+然后我们手动debugger，执行
+```
+(lldb) po $R0.title
+error: use of undeclared identifier '$R0'
+(lldb) expression -l swift -- $R0.title
+(String?) $R1 = "Quarterback"
+(lldb) expression -l swift -- $R0.title = "🐱🐱🐱🐱🐱🐱🐱"
+(lldb) continue
+```
+然后文字已经被改成了 "🐱🐱🐱🐱🐱🐱🐱"
+
+![](http://onkcruzxc.bkt.clouddn.com/1506739305.png )
+
+手动暂停程序，输入下面的命令
+```
+(lldb) expression -l swift -O -- $R0.viewDidLoad()
+```
+什么都不会打印，在执行下面的命令
+```
+(lldb) expression -l swift -O -i 0 -- $R0.viewDidLoad()
+error: Execution was interrupted, reason: breakpoint 1.1.
+The process has been left at the point where it was interrupted, use "thread return -x" to return to the state before expression evaluation.
+```
+如下图，现在断点在了viewDidLoad函数上，并且开始重新执行viewDidLoad函数。
+![](http://onkcruzxc.bkt.clouddn.com/1506740780.png )
+
+### 类型格式化
+
+G模式是GDB格式的。
+```
+(lldb) expression -G x -- 10
+(Int) $R9 = 0x000000000000000a
+(lldb) p/x 10
+(Int) $R10 = 0x000000000000000a
+(lldb) p/t 10
+(Int) $R11 = 0b0000000000000000000000000000000000000000000000000000000000001010
+(lldb) p/t -10
+(Int) $R12 = 0b1111111111111111111111111111111111111111111111111111111111110110
+(lldb) p/t 10.0
+(Double) $R13 = 0b0100000000100100000000000000000000000000000000000000000000000000
+(lldb) p/d 'D'
+(String) $R14 = "D"
+  Fix-it applied, fixed expression was: 
+    "D"
+(lldb) p/c 1430672467
+(Int) $R15 = STFU\0\0\0\0
+```
+GDB格式，可参考。
+[https://sourceware.org/gdb/onlinedocs/gdb/Output-Formats.html](https://sourceware.org/gdb/onlinedocs/gdb/Output-Formats.html)
+
+• x: hexadecimal
+• d: decimal
+• u: unsigned decimal
+• o: octal
+• t: binary
+• a: address
+• c: character constant
+• f: float
+• s: string
+
+使用lldb格式打印,lldb格式可参考[https://lldb.llvm.org/varformats.html](https://lldb.llvm.org/varformats.html)
+```
+(lldb) expression -f Y -- 1430672467
+(Int) $R16 = 53 54 46 55 00 00 00 00                         STFU....
+```
+
