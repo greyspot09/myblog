@@ -370,6 +370,62 @@ YES
 ## 其他
 后面自己尝试看下Swift的Closure/didSet/willSet property helpers的结构。
 
+```
+struct TestStruct {
+  var a = "abc" {
+    didSet {
+      print("didSet a:" + a)
+    }
+    willSet {
+      print("willSet a:" + a)
+    }
+  }
+  
+  func closureTest(closure: () -> Void) {
+    closure()
+  }
+}
+
+
+class MasterViewController: UITableViewController {
+  override func viewDidLoad() {
+    super.viewDidLoad()
+
+    var test = TestStruct()
+    test.a = "222"
+    test.closureTest {
+      print("hahaha")
+    }
+
+    [1,2].map {
+      return $0 + 1
+    }
+    
+}
+    
+```
+上面的viewDidLoad里面有两个closure，我们调试看看。
+```
+image lookup -rn 'closure #'  Signals
+15 matches found in /Users/liucien/Library/Developer/Xcode/DerivedData/Signals-culiiujhqnysbxfesxnutfbtktfz/Build/Products/Debug-iphonesimulator/Signals.app/Signals:
+        Summary: Signals`closure #1 () -> () in Signals.MasterViewController.viewDidLoad() -> () at MasterViewController.swift:69        Address: Signals[0x0000000100002d40] (Signals.__TEXT.__text + 5824)
+        Summary: Signals`closure #2 (Swift.Int) -> Swift.Int in Signals.MasterViewController.viewDidLoad() -> () at MasterViewController.swift:73        Address: Signals[0x0000000100006c30] (Signals.__TEXT.__text + 21936)
+        .........................
+```
+
+生成了包含了类似`closure #1 () -> () in Signals.MasterViewController.viewDidLoad() -> () `的符号。
+
+
+```
+(lldb) image dump symtab Signals -s address
+..........................
+[   17]     49 D X Code            0x0000000100001810 0x0000000104f4a810 0x0000000000000140 0x000f0000 Signals.TestStruct.a.didset : Swift.String
+[   18]     53 D X Code            0x0000000100001950 0x0000000104f4a950 0x0000000000000140 0x000f0000 Signals.TestStruct.a.willset : Swift.String
+...........................
+```
+
+Swift 里的Struce的willSet/didSet会分别生成`模块名字.对象类型名.属性名.{didset|willset} ：属性类型`的符号。
+
 
 
 

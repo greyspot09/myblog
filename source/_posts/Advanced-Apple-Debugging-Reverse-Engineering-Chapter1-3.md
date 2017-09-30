@@ -1,7 +1,7 @@
 ---
 title: Advanced Apple Debugging & Reverse Engineering 笔记1-4章节笔记
 date: 2017-09-26 23:17:30
-tags: lldb,逆向
+tags: [lldb,逆向]
 ---
 
 
