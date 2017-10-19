@@ -7,7 +7,7 @@ tags: [逆向]
 
 最近在读《Advanced-Apple-Debugging-Reverse-Engineering》，想找个MacOS上的app练下手。以前买了Reveal，改成订阅制之后没有重新订阅。偶尔需要用一下，所以就选了Reveal。
 
-###ptrace反动态调试
+### ptrace反动态调试
 首先在终端执行`lldb -f /Applications/Reveal.app/Contents/MacOS/Reveal`,并且使用`run`命令开始调试。
 
 ![](http://onkcruzxc.bkt.clouddn.com/15083369269912.jpg)
